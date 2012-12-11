@@ -1,3 +1,4 @@
+*.deb
 *.o
 Makefile.conf
 agent_sync.cfg
