@@ -1,0 +1,13 @@
+*.o
+Makefile.conf
+agent_sync.cfg
+bartlby.cfg
+bartlby_agent
+bartlby_agent_v2
+bartlby_cmd
+bartlby_v2_dh.h
+config.log
+config.status
+postinstall-pak
+preinstall-pak
+
