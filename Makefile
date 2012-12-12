@@ -41,3 +41,5 @@ install:
 
 clean:
 	$(RMVFR) *.o 
+	$(RMVFR) *.deb
+	
