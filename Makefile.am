@@ -37,3 +37,7 @@ install-data-hook:
 	chmod +x  $(DESTDIR)$(prefix)/bartlby_agent
 	chmod +x  $(DESTDIR)$(prefix)/bartlby_agent_v2
 	chmod +x  $(DESTDIR)$(prefix)/bartlby_cmd
+
+
+dist-hook:
+	make clean
