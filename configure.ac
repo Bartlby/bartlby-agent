@@ -2,9 +2,12 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT(bartlby-agent, 1.1.4, helmut@januschka.com)
+AC_INIT(bartlby-agent, 1.4.0, helmut@januschka.com)
 AC_PREFIX_DEFAULT(/usr/local/bartlby-agent)
-
+AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_MACRO_DIR([m4])
+AM_INIT_AUTOMAKE
+AM_SILENT_RULES([yes])
 
 dnl check for plugin dir
 AC_ARG_WITH(plugin-dir,AC_HELP_STRING([--with-plugin-dir], [Where are the plugins located]), PLUGIN_DIR="${withval}", PLUGIN_DIR="${prefix}/plugins/")
@@ -135,7 +138,7 @@ AC_FUNC_VPRINTF
 AC_CHECK_FUNCS([alarm gethostbyname gettimeofday inet_ntoa memmove memset setenv socket strdup strstr])
 
 
-AC_CONFIG_FILES([Makefile.conf bartlby.cfg postinstall-pak preinstall-pak agent_sync.cfg])
+AC_CONFIG_FILES([Makefile bartlby.cfg postinstall-pak preinstall-pak agent_sync.cfg])
 AC_OUTPUT
 echo "######################################"
 echo "#          bartlby Agent              #"
