@@ -6,7 +6,7 @@ AC_INIT(bartlby-agent, 1.4.0, helmut@januschka.com)
 AC_PREFIX_DEFAULT(/usr/local/bartlby-agent)
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([foreign])
 AM_SILENT_RULES([yes])
 
 dnl check for plugin dir
