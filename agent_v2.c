@@ -233,7 +233,7 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
         
         if(ip_ok < 0) {
         	//sleep(1);
-        	syslog(LOG_ERR, "ip blocked");
+        	syslog(LOG_ERR, "ip blocked %s", inet_ntoa(name.sin_addr));
 		exit(1);
         }
 	
