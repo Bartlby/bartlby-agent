@@ -59,34 +59,63 @@ static void bartlby_conn_timeout(int signo) {
  	connection_timed_out = 1;
 }
 
+int bartlby_agent_tcp_my_connect(char *host_name,int port){
+	int result;
+
+
+	struct addrinfo hints, *res, *ressave;
+	char ipvservice[20];
+	int sockfd;
+	
+	sprintf(ipvservice, "%d",port);
+	
+	 memset(&hints, 0, sizeof(struct addrinfo));
+
+   hints.ai_family = AF_UNSPEC;
+   hints.ai_socktype = SOCK_STREAM;
+	
+	 result = getaddrinfo(host_name, ipvservice, &hints, &res);
+	 if(result < 0) {
+	 		return -7;
+	}
+	ressave = res;
+	 
+	sockfd-1;
+	while (res) {
+        sockfd = socket(res->ai_family,
+                        res->ai_socktype,
+                        res->ai_protocol);
+
+        if (!(sockfd < 0)) {
+            if (connect(sockfd, res->ai_addr, res->ai_addrlen) == 0)
+                break;
+
+            close(sockfd);
+            sockfd=-1;
+        }
+    res=res->ai_next;
+  }
+  freeaddrinfo(ressave);
+ 
+	return sockfd;
+	
+	
+}
+
+
 
 int connect_to(char * host, int port) {
 	int client_socket;
 	int client_connect_retval=-1;
-	struct sockaddr_in remote_side;
-	struct hostent * remote_host;
 	struct sigaction act1, oact1;
 	
 	
 	connection_timed_out=0;
 	
-	if((remote_host = gethostbyname(host)) == 0) {
-		
-		return -1; //timeout
-	}
-	memset(&remote_side, '\0', sizeof(remote_side));
-	remote_side.sin_family=AF_INET;
-	remote_side.sin_addr.s_addr = htonl(INADDR_ANY);
-	remote_side.sin_addr.s_addr = ((struct in_addr *) (remote_host->h_addr))->s_addr;
-	remote_side.sin_port=htons(port);
+
 	
-	if((client_socket = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-			
-		
-		return -2; //Socket
-			
-			
-	}
+	
+	
 	act1.sa_handler = bartlby_conn_timeout;
 	sigemptyset(&act1.sa_mask);
 	act1.sa_flags=0;
@@ -101,14 +130,13 @@ int connect_to(char * host, int port) {
 		
 	}
 	alarm(5);
-	client_connect_retval = connect(client_socket, (void *) &remote_side, sizeof(remote_side));
+	client_socket = bartlby_agent_tcp_my_connect(host, port);
 	alarm(0);
 	
-	if(connection_timed_out == 1 || client_connect_retval == -1) {
+	if(connection_timed_out == 1 || client_socket == -1) {
 		return -4; //connect
 	} 
 	connection_timed_out=0;
-	
 	return client_socket; 	
 }
 
