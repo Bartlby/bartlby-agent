@@ -36,7 +36,7 @@ $Author$
 #include <sys/stat.h>
 #include <errno.h>
 #include <fcntl.h>
-
+#include <netdb.h>
 
 #ifdef HAVE_SSL
 #include <openssl/dh.h>
@@ -197,10 +197,13 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
 	struct sigaction act1, oact1;
 	char * allowed_ip_list;
 	char * token;
-	struct sockaddr_in name;
+	struct sockaddr_storage name;
 	unsigned int namelen = sizeof(name);
 	int ip_ok=-1;
 	
+	int error;
+	char namebuf[50];
+	char portbuf[50];
 	
 	u_int32_t packet_crc32;
 
@@ -219,12 +222,20 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
         token=strtok(allowed_ip_list,",");
         
         if (getpeername(0,(struct sockaddr *)&name, &namelen) < 0) {
-   		syslog(LOG_ERR, "getpeername failed");
-   		exit(1);
-   	}
-        
+   					syslog(LOG_ERR, "getpeername failed");
+   					exit(1);
+   			}
+        error = getnameinfo((struct sockaddr *)&name, namelen,
+                    namebuf, sizeof(namebuf),
+                    portbuf, sizeof(portbuf),
+                    NI_NUMERICHOST);
+                    
+        if (error) {
+   					syslog(LOG_ERR, "getnameinfo failed %s", gai_strerror(error));
+   					exit(1);
+   			}
         while(token != NULL) {
-        	if(strcmp(token, inet_ntoa(name.sin_addr)) == 0) {
+        	if(strcmp(token, namebuf) == 0) {
         		ip_ok=0;	
         	}
         	token=strtok(NULL, ",");	
@@ -233,7 +244,7 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
         
         if(ip_ok < 0) {
         	//sleep(1);
-        	syslog(LOG_ERR, "ip blocked %s", inet_ntoa(name.sin_addr));
+        	syslog(LOG_ERR, "ip blocked %s port", namebuf, portbuf);
 		exit(1);
         }
 	

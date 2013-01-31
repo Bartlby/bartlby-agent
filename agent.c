@@ -64,7 +64,7 @@ int main(int argc, char ** argv) {
 	int plugin_rtc;
 	struct stat plg_stat;
 	char plugin_output[1024];
-	struct sockaddr_in name;
+	struct sockaddr_storage name;
    	unsigned int namelen = sizeof(name);
 	char * agent_load_limit;
 	char * allowed_ip_list;
@@ -72,6 +72,10 @@ int main(int argc, char ** argv) {
 	char * cfg_ip_entry;
 	struct hostent * remote_host;
 	char * ip_to_check;
+		
+	int error;
+	char namebuf[50];
+	char portbuf[50];
 		
 	FILE * fplg;
 	
@@ -123,34 +127,28 @@ int main(int argc, char ** argv) {
 	alarm(CONN_TIMEOUT);
         
         if (getpeername(0,(struct sockaddr *)&name, &namelen) < 0) {
-   		//syslog(LOG_ERR, "getpeername: %m");
-   		exit(1);
-   	} else {
-   		//syslog(LOG_INFO, "Connection from %s",	inet_ntoa(name.sin_addr));
-   	}
+   					//syslog(LOG_ERR, "getpeername: %m");
+   					exit(1);
+   			} else {
+   					//syslog(LOG_INFO, "Connection from %s",	inet_ntoa(name.sin_addr));
+   			}
+   			
+   			 error = getnameinfo((struct sockaddr *)&name, namelen,
+                    namebuf, sizeof(namebuf),
+                    portbuf, sizeof(portbuf),
+                    NI_NUMERICHOST);
+                    
+        if (error) {
+   					//syslog(LOG_ERR, "getnameinfo failed %s", gai_strerror(error));
+   					exit(1);
+   			}
         
         while(token != NULL) {
         	//printf("CHECKING: %s against %s\n", token, inet_ntoa(name.sin_addr));
         	cfg_ip_entry=strdup(token);
-        	ip_to_check=strdup(inet_ntoa(name.sin_addr));
+        	ip_to_check=strdup(namebuf);
         	
-        	if(host_name_in_allowed_cfg != NULL) {
-        		//we have to resolve the entrys
-        		
-        		if((remote_host = gethostbyname(cfg_ip_entry)) == 0) {
-				printf("dns failed\n");
-				sleep(2);
-				exit(1);
-			}
-			//remote_side.sin_addr.s_addr =  ;
-        		//free prev. vars
-        		
-        		free(cfg_ip_entry);
-        		cfg_ip_entry=strdup(inet_ntoa(*(struct in_addr*)remote_host->h_addr_list[0]));
-        		
-        		
-        			
-        	}
+       
         	//printf("Comparing: %s against %s\n", cfg_ip_entry, ip_to_check);
         	if(strcmp(cfg_ip_entry, ip_to_check) == 0) {
         		ip_ok=0;	
@@ -166,7 +164,7 @@ int main(int argc, char ** argv) {
         free(allowed_ip_list);
         if(ip_ok < 0) {
         	//sleep(1);
-        	sprintf(svc_back, "2|IP Blocked '%s'\n", inet_ntoa(name.sin_addr));
+        	sprintf(svc_back, "2|IP Blocked '%s'\n", namebuf);
         	
 		printf("%s\n", svc_back);
 		fflush(stdout);	
