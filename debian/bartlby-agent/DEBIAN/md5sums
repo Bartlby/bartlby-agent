@@ -1,0 +1,10 @@
+5155fde346646541d4e2b0d414fc99de  opt/bartlby-agent/HOWTO.passive
+bc3fc90000f562820b51bd779d700413  opt/bartlby-agent/agent_sync.cfg
+164e18cd31804faeb1f2386778bb0f7f  opt/bartlby-agent/agent_sync.sh
+39407e1ac43ca98f7a4d5cb4a7622889  opt/bartlby-agent/bartlby.cfg
+611a7e1898b8fae0d6b63931ace563ae  opt/bartlby-agent/bartlby_agent
+d476c90691e53404b626c73f760dd413  opt/bartlby-agent/bartlby_agent_v2
+1b6b3b4ae81622c1f571d9d6f84ae7ce  opt/bartlby-agent/bartlby_cmd
+27cc7fb6014d68677a61006bf4528288  opt/bartlby-agent/passive_run.sample
+6573d7279ff491415d01461965171063  usr/share/doc/bartlby-agent/changelog.gz
+03416af6938d31c78708cbe066314006  usr/share/doc/bartlby-agent/copyright

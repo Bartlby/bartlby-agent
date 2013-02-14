@@ -1,0 +1,21 @@
+#!/bin/sh
+
+grep bartlbya /etc/services
+EX=$?
+if [ $EX = 1 ];
+then
+	 echo "bartlbya                9030/tcp                        #Bartlby Agent" >> /etc/services
+       
+fi;
+
+grep bartlbya2 /etc/services
+EX=$?
+if [ $EX = 1 ];
+then
+         echo "bartlbya2                9040/tcp                        #Bartlby Agent" >> /etc/services
+
+fi;
+
+update-inetd --add 'bartlbya\t\tstream\ttcp\tnowait.500\troot\t/opt/bartlby-agent/bartlby_agent /opt/bartlby-agent//bartlby.cfg'
+update-inetd --add 'bartlbya2\t\tstream\ttcp\tnowait.500\troot\t/opt/bartlby-agent/bartlby_agent_v2 /opt/bartlby-agent//bartlby.cfg'
+
