@@ -1,4 +1,7 @@
-
+debian/bartlby-agent.debhelper.log
+debian/bartlby-agent.substvars
+debian/bartlby-agent/
+debian/files
 config.h.in
 agent_sync.cfg
 bartlby_agent
