@@ -8,6 +8,6 @@ Homepage: http://www.bartlby.org
 
 Package: bartlby-agent
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, update-inetd, openbsd-inetd
 Description: Bartlby Network Monitoring Agent
  Installs the agend
