@@ -1,3 +1,9 @@
+bartlby-agent (1.4.9) unstable; urgency=low
+
+  *  1.4.9
+
+ -- root <root@Debian-60-squeeze-64-minimal>  Mon, 25 Feb 2013 14:33:43 +0100
+
 bartlby-agent (1.4.6) unstable; urgency=low
 
   * DEB
