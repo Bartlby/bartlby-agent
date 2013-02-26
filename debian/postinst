@@ -1,6 +1,6 @@
 #!/bin/sh
 
-grep bartlbya /etc/services
+grep  -e  "bartlbya " /etc/services
 EX=$?
 if [ $EX = 1 ];
 then
@@ -8,7 +8,7 @@ then
        
 fi;
 
-grep bartlbya2 /etc/services
+grep  -e  "bartlbya2 " /etc/services
 EX=$?
 if [ $EX = 1 ];
 then
