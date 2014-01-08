@@ -44,7 +44,7 @@ static int connection_timed_out=0;
 
 #define CONN_TIMEOUT 60
 #define MYOS "Linux"
-#define MYVERSION "0.9f6"
+#define MYVERSION "1.0f1"
 
 static void agent_conn_timeout(int signo) {
  	connection_timed_out = 1;
@@ -53,6 +53,7 @@ int main(int argc, char ** argv) {
 	float loadavg[3];
 	FILE * load;
 	char svc_back[1024];
+	char svc_back_temp[1024];
 	char svc_in[1024];
 	char * plugin_dir;
 	char  * plugin_path;
@@ -246,9 +247,11 @@ int main(int argc, char ** argv) {
 						//printf("E_STR: P: '%s' A: '%s' F: '%s'\n", plugin_path, plg_args, exec_str);
 						
 						fplg=popen(exec_str, "r");
+						sprintf(svc_back_temp, "");
 						if(fplg != NULL) {
 							connection_timed_out=0;
 							alarm(CONN_TIMEOUT);
+							
 							if(fgets(plugin_output, 1024, fplg) != NULL) {
 								if(strncmp(plugin_output, "PERF: ", 6) == 0) {
 									
@@ -256,9 +259,21 @@ int main(int argc, char ** argv) {
 									fflush(stdout);
 									//sleep(1);
 									if(fgets(plugin_output, 1024, fplg) != NULL) {
-										plugin_rtc=pclose(fplg);
 										plugin_output[strlen(plugin_output)-1]='\0';
-										sprintf(svc_back, "%d|%s\n", WEXITSTATUS(plugin_rtc), plugin_output);		
+										strcat(svc_back_temp, plugin_output);
+										strcat(svc_back_temp, "\n");
+										///Multiline support
+										while(fgets(plugin_output, 1024, fplg) != NULL) {
+											plugin_output[strlen(plugin_output)-1]='\0';
+											if(strlen(svc_back_temp)+strlen(plugin_output)+1 <= 1022){
+												strcat(svc_back_temp, plugin_output);
+												strcat(svc_back_temp, "\n");												
+											}
+										}
+										strcat(svc_back_temp, "\n");
+										plugin_rtc=pclose(fplg);
+										sprintf(svc_back,"%d|%s", WEXITSTATUS(plugin_rtc), svc_back_temp);
+										
 									} else {
 										plugin_rtc=pclose(fplg);
 										sprintf(svc_back, "%d|No Output(Perf) - %s", WEXITSTATUS(plugin_rtc), exec_str);	
@@ -266,9 +281,24 @@ int main(int argc, char ** argv) {
 									}
 									
 								} else {
-									plugin_rtc=pclose(fplg);
+									
 									plugin_output[strlen(plugin_output)-1]='\0';
-									sprintf(svc_back, "%d|%s\n", WEXITSTATUS(plugin_rtc), plugin_output);		
+									strcat(svc_back_temp, plugin_output);
+									strcat(svc_back_temp, "\n");
+									
+									while(fgets(plugin_output, 1024, fplg) != NULL) {
+										plugin_output[strlen(plugin_output)-1]='\0';
+										if(strlen(svc_back_temp)+strlen(plugin_output)+1 <= 1022){
+											strcat(svc_back_temp, plugin_output);
+											strcat(svc_back_temp, "\n");												
+										}
+									}
+
+									strcat(svc_back_temp, "\n");
+									plugin_rtc=pclose(fplg);
+									sprintf(svc_back,"%d|%s", WEXITSTATUS(plugin_rtc), svc_back_temp);
+
+
 								}
 								
 								
