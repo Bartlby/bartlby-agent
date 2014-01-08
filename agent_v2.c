@@ -411,24 +411,46 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
 				if(strncmp(plugin_output, "PERF: ", 6) == 0) {
 					sprintf(send_packet.perf_handler,"%s", plugin_output);
 					if(fgets(plugin_output, 1024, fplg) != NULL) {
-						plugin_rtc=pclose(fplg);
+						
 						plugin_output[strlen(plugin_output)-1]='\0';
 						
-						send_packet.exit_code=(int16_t)WEXITSTATUS(plugin_rtc);
+
+						
 						sprintf(send_packet.output, "%s", plugin_output);
+						while(fgets(plugin_output, 1024, fplg) != NULL) {
+							if((strlen(plugin_output) + strlen(send_packet.output) + 2) <= 2048) {
+								strcat(send_packet.output, plugin_output);
+								
+									
+							}
+						}
+						plugin_rtc=pclose(fplg);
+						send_packet.exit_code=(int16_t)WEXITSTATUS(plugin_rtc);
+
 						goto sendit;
 												
 					} else {
 						plugin_rtc=pclose(fplg);
 						send_packet.exit_code=(int16_t)WEXITSTATUS(plugin_rtc);
+
+						//FIXME MULTILINE
 						sprintf(send_packet.output, "not output (perf)");
 							
 					}
 					
 				} else {
+					sprintf(send_packet.output, "%s", plugin_output);
+					while(fgets(plugin_output, 1024, fplg) != NULL) {
+						if((strlen(plugin_output) + strlen(send_packet.output) + 2) <= 2048) {
+							strcat(send_packet.output, plugin_output);
+							
+									
+						}
+					}
 					plugin_rtc=pclose(fplg);
 					send_packet.exit_code=(int16_t)WEXITSTATUS(plugin_rtc);
-					sprintf(send_packet.output, "%s", plugin_output);	
+
+
 					//syslog(LOG_ERR,"Plugin: %s Exit-Code: %d - converted to: %d",receive_packet.plugin, WEXITSTATUS(plugin_rtc), send_packet.exit_code);
 				}	
 			} else {
