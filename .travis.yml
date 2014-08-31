@@ -1,0 +1,28 @@
+env:
+  global:
+   # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created a
+   #   via the "travis encrypt" command using the project repo's public key
+   - secure: "DVmUB3H5Y9rK/xPXb6OdXgMrJDMo9LdOu+IlmkczT/OsLwirW1HaM58J4kccSaqEDYw05mhiX0MaS6DndRj2x0xYnUGfZWZ1Z8ELPVR6ysBlFyzC3/4NraOaIbD4OyI3Tk7pAU5AROUw3DMgVIU6Niv4YC/6FocBwP1SOfYewyM="
+
+addons:
+  coverity_scan:
+    project:
+      name: "Bartlby/bartlby-agent"
+      description: "Bartlby Agent"
+    notification_email: helmut@januschka.com
+    build_command_prepend: make clean; ./configure --enable-nrpe --enable-ssl --prefix=$PWD/installation --with-user=travis
+    build_command:   make -j4
+    branch_pattern: development.*
+
+
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y libjson0-dev libjson0
+
+before_script:
+    # Compile PHP
+    - ./travis/compile.sh
+
+script: 
+ - ./travis/build_check.sh
+

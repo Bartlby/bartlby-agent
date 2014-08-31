@@ -20,12 +20,7 @@ $Date$
 $Author$ 
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#ifndef __APPLE__
-#include <malloc.h>
-#endif
-#include <string.h>
+#include "bartlby_agent.h"
 
 
 #define MAX_CCACHE 1024
@@ -126,6 +121,7 @@ char * getConfigValue(char * key, char * fname) {
 						
 						tok=strtok(NULL, "=");
 						if(tok == NULL) {
+								fclose(fp);
 								return NULL;
 						}
 						if(tok[strlen(tok)-1] == '\r') {

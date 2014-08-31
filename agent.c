@@ -19,23 +19,7 @@ $HeadURL$
 $Date$
 $Author$ 
 */
-#ifndef __APPLE__
-#include <malloc.h>
-#endif
-#include <stdio.h>
-#include <syslog.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/socket.h>
-#include <netdb.h>
+#include "bartlby_agent.h"
 
 int has_bad_chars( char * str);
 char * getConfigValue(char * key, char * fname);
@@ -75,6 +59,7 @@ int main(int argc, char ** argv) {
 	char * ip_to_check;
 		
 	int error;
+	int recv_bytes;
 	char namebuf[50];
 	char portbuf[50];
 		
@@ -186,7 +171,9 @@ int main(int argc, char ** argv) {
         
        	#ifndef __APPLE__ 
         load=fopen("/proc/loadavg", "r");
-        fscanf(load, "%f %f %f", &loadavg[0], &loadavg[1], &loadavg[2]);
+        if(fscanf(load, "%f %f %f", &loadavg[0], &loadavg[1], &loadavg[2]) != 3) {
+        		printf("LOAD READ OUT FAILED");
+        }
         fclose(load);
 	#else
 	//Stupid
@@ -202,13 +189,15 @@ int main(int argc, char ** argv) {
 		connection_timed_out=0;
 		alarm(CONN_TIMEOUT);
 		//ipmlg]ajgai]Amoowlkecvg~"/j"nmacnjmqv~
-		if(read(fileno(stdin), svc_in, 1024) < 0) {
+		recv_bytes=read(fileno(stdin), svc_in, 1024);
+		if(recv_bytes < 0) {
 			printf("2|read BAD!\n\n");
 			fflush(stdout);	
 			sleep(2);
 			exit(1);
 		}
 		alarm(0);
+		svc_in[recv_bytes-1]=0;
 		
 		if(connection_timed_out == 1) {
 			printf("2|conn Timed out!!!\n\n");

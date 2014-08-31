@@ -22,23 +22,8 @@ $Author$
 
 
 
-#include <time.h>
-#include <stdio.h>
-#include <syslog.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <getopt.h>
-#include <netdb.h>
+
+#include "bartlby_agent.h"
 
 
 
@@ -52,14 +37,65 @@ char * passive_host=NULL;
 int passive_service=-1;
 int passive_port=-1;
 
-static sig_atomic_t connection_timed_out=0;
+static sig_atomic_t portier_connection_timed_out=0;
+
+
+
+
+
+#define _log(a,b,...) printf(__VA_ARGS__);
+
 
 
 static void bartlby_conn_timeout(int signo) {
- 	connection_timed_out = 1;
+ 	portier_connection_timed_out = 1;
 }
 
-int bartlby_agent_tcp_my_connect(char *host_name,int port){
+//Caller has to free
+char * bartlby_portier_fetch_reply(int sock) {
+		char buffer[2048];
+		portier_connection_timed_out=0;
+		int recv_bytes;
+		alarm(5);
+		recv_bytes=read(sock, buffer, 2047);
+		if(recv_bytes < 0) {
+			_log(LH_TRIGGER, B_LOG_CRIT, "Portier: fetching reply failed\n");
+			return NULL;
+		}
+		if(portier_connection_timed_out == 1) {
+			return NULL;
+		} else {
+			buffer[recv_bytes]=0;
+			return strdup(buffer);
+		}
+		
+}
+
+void bartlby_portier_disconnect(int sock) {
+	close(sock);
+}
+
+
+int bartlby_portier_send(json_object * obj, int sock) {
+
+	const char * json_package = json_object_to_json_string(obj);
+
+
+	portier_connection_timed_out=0;
+	alarm(5);
+	if(write(sock, json_package, strlen(json_package)) < 0) {
+			return -1;
+	}
+	alarm(0);
+	if(portier_connection_timed_out == 1) {
+		_log(LH_TRIGGER, B_LOG_DEBUG, "PORTIER: sending of json package timed out");
+		return -1;
+	}
+	portier_connection_timed_out=0;
+	return 1;
+}
+
+int bartlby_portier_connect(char *host_name,int port){
 	int result;
 
 
@@ -74,24 +110,33 @@ int bartlby_agent_tcp_my_connect(char *host_name,int port){
    hints.ai_family = AF_UNSPEC;
    hints.ai_socktype = SOCK_STREAM;
 	
+	 portier_connection_timed_out=0;
+	
+	
 	 result = getaddrinfo(host_name, ipvservice, &hints, &res);
-	 if(result < 0) {
+	 if(result < 0 || portier_connection_timed_out != 0) {
 	 		return -7;
 	}
 	ressave = res;
-	 
-	sockfd-1;
+	sockfd=-1;
+	
 	while (res) {
+		alarm(5);
         sockfd = socket(res->ai_family,
                         res->ai_socktype,
                         res->ai_protocol);
-
+        alarm(0);
+       
         if (!(sockfd < 0)) {
-            if (connect(sockfd, res->ai_addr, res->ai_addrlen) == 0)
+        	alarm(5);
+            if (connect(sockfd, res->ai_addr, res->ai_addrlen) == 0) {
                 break;
-
+            }
+            alarm(0);
+        	    
             close(sockfd);
             sockfd=-1;
+            
         }
     res=res->ai_next;
   }
@@ -103,43 +148,6 @@ int bartlby_agent_tcp_my_connect(char *host_name,int port){
 }
 
 
-
-int connect_to(char * host, int port) {
-	int client_socket;
-	int client_connect_retval=-1;
-	struct sigaction act1, oact1;
-	
-	
-	connection_timed_out=0;
-	
-
-	
-	
-	
-	act1.sa_handler = bartlby_conn_timeout;
-	sigemptyset(&act1.sa_mask);
-	act1.sa_flags=0;
-	#ifdef SA_INTERRUPT
-	act1.sa_flags |= SA_INTERRUPT;
-	#endif
-	
-	if(sigaction(SIGALRM, &act1, &oact1) < 0) {
-		
-		return -3; //timeout handler
-	
-		
-	}
-	alarm(5);
-	client_socket = bartlby_agent_tcp_my_connect(host, port);
-	alarm(0);
-	
-	if(connection_timed_out == 1 || client_socket == -1) {
-		return -4; //connect
-	} 
-	connection_timed_out=0;
-	return client_socket; 	
-}
-
 void cmd_get_passive() {
 	int res;
 	char verstr[2048];
@@ -147,71 +155,37 @@ void cmd_get_passive() {
 	char result[2048];
 	char * token, * token_t;
 	int rc;
-	
-	res=connect_to(passive_host, passive_port);
+	json_object * jso, *rjso, *json_plugin, *json_args, *json_error, *json_errormsg;
+	char * reply;
+
+	res=bartlby_portier_connect(passive_host, passive_port);
 	if(res > 0) {
-		
-		connection_timed_out=0;
-		alarm(5);
-		if(read(res, verstr, 1024) < 0) {
-			printf("Read error\n");
-			exit(1);
-		}
-		if(verstr[0] != '+') {
-			printf("Server said a bad result: '%s'\n", verstr);
-			close(res);
-			exit(1);
-		}
-		alarm(0);
-		//printf("Connected to: %s\n", verstr);		
-		sprintf(cmdstr, "2|%d|", passive_service);
-		connection_timed_out=0;
-		alarm(5);
-		if(write(res, cmdstr, 1024) < 0) {
-			printf("BAD2!\n");
-			exit(1);
-		}
-		alarm(0);
-		connection_timed_out=0;
-		alarm(5);
-		if((rc=read(res, result, 1024)) < 0) {
-			printf("BAD!\n");
-			exit(1);
-		}
-		alarm(0);
-		result[rc-1]='\0'; //cheap trim *fg*
-		if(result[0] != '+') {
-			printf("Server said a bad result: '%s'\n", result);
-		}  else {
-			token=strtok(result, "|");
-			if(token != NULL) {
-				token=strtok(NULL, " ");
-				if(token != NULL) {
-					token_t=strtok(NULL, "|");
-					if(token_t == NULL) {
-						token_t=strdup("");
-					}
-					printf("%s %s", token, token_t);	
-					printf("\n");
-					close(res);
-					exit(0);
-					
-				} else {
-					close(res);
-					printf("hmmm3\n");	
-					exit(3);
-				}
-			} else {
-				close(res);
-				printf("hmmm1\n");	
-				exit(3);
-			}
-		}
-		
-		
-			
+		jso = json_object_new_object();
+		json_object_object_add(jso, "method", json_object_new_string("plugin_info"));
+    	json_object_object_add(jso, "service_id", json_object_new_int64(passive_service));				
+    	if(bartlby_portier_send(jso, res) >0) {
+    		reply=bartlby_portier_fetch_reply(res);
+    		rjso=json_tokener_parse(reply);
+    		if(rjso) {
+    			json_object_object_get_ex(rjso, "plugin", &json_plugin);
+    			json_object_object_get_ex(rjso, "args", &json_args);
+    			json_object_object_get_ex(rjso, "error_code", &json_error);
+    			json_object_object_get_ex(rjso, "error_msg", &json_errormsg);
+				if(json_object_get_int(json_error) < 0) {
+					printf("Failed with '%s'\n", json_object_get_string(json_errormsg));
+					exit(4);
+				}    else { 			
+    				printf("%s %s\n", json_object_get_string(json_plugin), json_object_get_string(json_args));
+    			}
+    			json_object_put(rjso);
+    		} else {
+    			printf("JSON PARSE ERROR on '%s'", reply);
+    		}
+    		free(reply);
+    	}
+    	json_object_put(jso);
+    	bartlby_portier_disconnect(res);
 	} else {
-		
 		printf("Connect failed\n");
 		exit(2);	
 	}	
@@ -225,47 +199,46 @@ void cmd_get_server_id() {
 	char myhostname[255];
 	
 	int rc;
-	
+	json_object * jso, *rjso, *json_server_id, *json_error, *json_errormsg;
+	char * reply;
+
 	if(gethostname(myhostname, 255) != 0) {
 		printf("gethostname() failed\n");
 		exit(1);	
 	}
 	fprintf(stderr, "trying to get server id for: %s \n", myhostname);
-	res=connect_to(passive_host, passive_port);
+	
+
+	res=bartlby_portier_connect(passive_host, passive_port);
 	if(res > 0) {
-		
-		connection_timed_out=0;
-		alarm(5);
-		if(read(res, verstr, 1024) < 0) {
-			printf("BAD!\n");
-			exit(1);
-		}
-		if(verstr[0] != '+') {
-			printf("Server said a bad result: '%s'\n", verstr);
-			close(res);
-			exit(1);
-		}
-		alarm(0);
-		//printf("Connected to: %s\n", verstr);		
-		sprintf(cmdstr, "5|%s|\n", myhostname);
-		
-		connection_timed_out=0;
-		alarm(5);
-		if(write(res, cmdstr, 1024) < 0) {
-			printf("BAD2!\n");
-			exit(1);
-		}
-		alarm(0);
-		connection_timed_out=0;
-		alarm(5);
-		while((rc=read(res, result, 1024)) > 0) {
-			result[rc-1]='\0';
-			printf("%s", result);
-		}
-		
-			
+		jso = json_object_new_object();
+		json_object_object_add(jso, "method", json_object_new_string("get_server_id"));
+    	json_object_object_add(jso, "server_name", json_object_new_string(myhostname));				
+    	
+    	if(bartlby_portier_send(jso, res) >0) {
+    		reply=bartlby_portier_fetch_reply(res);
+    		rjso=json_tokener_parse(reply);
+    		if(rjso) {
+    			json_object_object_get_ex(rjso, "server_id", &json_server_id);
+    			json_object_object_get_ex(rjso, "error_code", &json_error);
+    			json_object_object_get_ex(rjso, "error_msg", &json_errormsg);
+				if(json_object_get_int(json_error) < 0) {
+					printf("Failed with '%s'\n", json_object_get_string(json_errormsg));
+					exit(4);
+				}    else { 			
+    				printf("%ld\n", json_object_get_int64(json_server_id));
+    			}
+    			json_object_put(rjso);
+    		} else {
+    			printf("JSON PARSE ERROR on '%s'", reply);
+    		}
+    		free(reply);
+    	} else {
+    		printf("send failed()");
+    	}
+    	json_object_put(jso);
+    	bartlby_portier_disconnect(res);
 	} else {
-		
 		printf("Connect failed\n");
 		exit(2);	
 	}	
@@ -279,44 +252,51 @@ void cmd_get_services() {
 	
 	int rc;
 	
-	res=connect_to(passive_host, passive_port);
+	int i;
+	json_object * jso, *rjso, *json_services, *json_error, *json_errormsg;
+	char * reply;
+
+	
+
+	res=bartlby_portier_connect(passive_host, passive_port);
 	if(res > 0) {
-		
-		connection_timed_out=0;
-		alarm(5);
-		if(read(res, verstr, 1024) < 0) {
-			printf("BAD!\n");
-			exit(1);
-		}
-		if(verstr[0] != '+') {
-			printf("Server said a bad result: '%s'\n", verstr);
-			close(res);
-			exit(1);
-		}
-		alarm(0);
-		//printf("Connected to: %s\n", verstr);		
-		sprintf(cmdstr, "4|%d|\n", passive_service);
-		
-		connection_timed_out=0;
-		alarm(5);
-		if(write(res, cmdstr, 1024) < 0) {
-			printf("BAD2!\n");
-			exit(1);
-		}
-		alarm(0);
-		connection_timed_out=0;
-		alarm(5);
-		while((rc=read(res, result, 1024)) > 0) {
-			result[rc-1]='\0';
-			printf("%s", result);
-		}
-		
-			
+		jso = json_object_new_object();
+		json_object_object_add(jso, "method", json_object_new_string("server_checks_needed"));
+    	json_object_object_add(jso, "server_id", json_object_new_int64(passive_service));				
+    	
+    	if(bartlby_portier_send(jso, res) >0) {
+    		reply=bartlby_portier_fetch_reply(res);
+    		rjso=json_tokener_parse(reply);
+    		if(rjso) {
+    			json_object_object_get_ex(rjso, "services", &json_services);
+    			json_object_object_get_ex(rjso, "error_code", &json_error);
+    			json_object_object_get_ex(rjso, "error_msg", &json_errormsg);
+				if(json_object_get_int(json_error) < 0) {
+					printf("Failed with '%s'\n", json_object_get_string(json_errormsg));
+					exit(4);
+				}    else { 			
+    				for(i=0; i < json_object_array_length(json_services); i++) {
+						json_object *obj = json_object_array_get_idx(json_services, i);
+						printf("%ld ", json_object_get_int64(obj));
+						json_object_put(obj);
+					}
+					printf("\n");
+    			}
+    			json_object_put(rjso);
+    		} else {
+    			printf("JSON PARSE ERROR on '%s'", reply);
+    		}
+    		free(reply);
+    	} else {
+    		printf("send failed()");
+    	}
+    	json_object_put(jso);
+    	bartlby_portier_disconnect(res);
 	} else {
-		
 		printf("Connect failed\n");
 		exit(2);	
 	}	
+
 }
 
 void cmd_set_passive() {
@@ -327,50 +307,48 @@ void cmd_set_passive() {
 	
 	int rc;
 	
-	res=connect_to(passive_host, passive_port);
+	int i;
+	json_object * jso, *rjso, *json_services, *json_error, *json_errormsg;
+	char * reply;
+
+	
+
+	res=bartlby_portier_connect(passive_host, passive_port);
 	if(res > 0) {
-		
-		connection_timed_out=0;
-		alarm(5);
-		if(read(res, verstr, 1024) < 0) {
-			printf("BAD!\n");
-			exit(1);
-		}
-		if(verstr[0] != '+') {
-			printf("Server said a bad result: '%s'\n", verstr);
-			close(res);
-			exit(1);
-		}
-		alarm(0);
-		//printf("Connected to: %s\n", verstr);		
-		sprintf(cmdstr, "1|%d|%d|%s", passive_service, new_passive_state, new_passive_text);
-		connection_timed_out=0;
-		alarm(5);
-		if(write(res, cmdstr, 1024) < 0) {
-			printf("BAD2!\n");
-			exit(1);
-		}
-		alarm(0);
-		connection_timed_out=0;
-		alarm(5);
-		if((rc=read(res, result, 1024)) < 0) {
-			printf("BAD!\n");
-			exit(1);
-		}
-		alarm(0);
-		result[rc-1]='\0'; //cheap trim *fg*
-		if(result[0] != '+') {
-			printf("Server said a bad result: '%s'\n", result);
-		}  else {
-			printf("%s\n", result);
-		}
-		close(res);			
+		jso = json_object_new_object();
+		json_object_object_add(jso, "method", json_object_new_string("set_passive"));
+    	json_object_object_add(jso, "service_id", json_object_new_int64(passive_service));				
+    	json_object_object_add(jso, "state", json_object_new_int(new_passive_state));			
+    	json_object_object_add(jso, "passive_text", json_object_new_string(new_passive_text));			
+    	
+    	if(bartlby_portier_send(jso, res) >0) {
+    		reply=bartlby_portier_fetch_reply(res);
+    		rjso=json_tokener_parse(reply);
+    		if(rjso) {
+    			json_object_object_get_ex(rjso, "error_code", &json_error);
+    			json_object_object_get_ex(rjso, "message", &json_errormsg);
+				if(json_object_get_int(json_error) < 0) {
+					printf("Failed with '%s'\n", json_object_get_string(json_errormsg));
+					exit(4);
+				}    else { 			
+    				printf("Return: %s\n", json_object_get_string(json_errormsg));
+    				
+    			}
+    			json_object_put(rjso);
+    		} else {
+    			printf("JSON PARSE ERROR on '%s'", reply);
+    		}
+    		free(reply);
+    	} else {
+    		printf("send failed()");
+    	}
+    	json_object_put(jso);
+    	bartlby_portier_disconnect(res);
 	} else {
-		
 		printf("Connect failed\n");
 		exit(2);	
 	}	
-	exit(1);
+
 }
 
 void help() {
@@ -470,3 +448,5 @@ int main(int argc, char ** argv) {
 	
 	return 0;
 }
+
+

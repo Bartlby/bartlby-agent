@@ -19,34 +19,8 @@ $HeadURL$
 $Date$
 $Author$ 
 */
-#ifndef __APPLE__
-#include <malloc.h>
-#endif
-#include <stdio.h>
-#include <syslog.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <netdb.h>
-#include <time.h>
+#include "bartlby_agent.h"
 
-
-#ifdef HAVE_SSL
-#include <openssl/dh.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <openssl/rand.h>
-
-#endif
 
 extern unsigned long crc32_table[256];
 

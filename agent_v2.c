@@ -19,32 +19,8 @@ $HeadURL$
 $Date$
 $Author$ 
 */
-#ifndef __APPLE__
-#include <malloc.h>
-#endif
-#include <stdio.h>
-#include <syslog.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <signal.h>
-#include <sys/wait.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <netdb.h>
+#include "bartlby_agent.h"
 
-#ifdef HAVE_SSL
-#include <openssl/dh.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-#include <openssl/rand.h>
-#include "bartlby_v2_dh.h"
-#endif
 
 
 static int use_ssl=1;
@@ -128,7 +104,7 @@ int main(int argc, char **argv){
 	if(use_ssl == 1) {
 		SSL_library_init();
 		SSLeay_add_ssl_algorithms();
-		meth=SSLv23_server_method();
+		meth=(SSL_METHOD*)SSLv23_server_method();
 		SSL_load_error_strings();
 		
 		/* use week random seed if necessary */
@@ -167,7 +143,9 @@ int main(int argc, char **argv){
 	
 	//as we are running under inetd!!
 	close(2);
-	open("/dev/null",O_WRONLY);
+	if(open("/dev/null",O_WRONLY) < 0) {
+		printf("FOPEN On /dev/null failed");
+	}
 	
 	agent_v2_do_check(0, argv[argc-1]);
 
@@ -191,9 +169,9 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
 	int plugin_rtc;
 	FILE * fplg;
 	struct stat plg_stat;
-	char  * plugin_path;
-	char * plugin_dir;
-	char * exec_str;
+	char  * plugin_path=NULL;
+	char * plugin_dir=NULL;
+	char * exec_str=NULL;
 	struct sigaction act1, oact1;
 	char * allowed_ip_list;
 	char * token;
@@ -244,7 +222,7 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
         
         if(ip_ok < 0) {
         	//sleep(1);
-        	syslog(LOG_ERR, "ip blocked %s port", namebuf, portbuf);
+        	syslog(LOG_ERR, "ip blocked %s : %s port", namebuf, portbuf);
 		exit(1);
         }
 	
@@ -278,6 +256,7 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
 		if(use_ssl == 1) {
 			if((ssl=SSL_new(ctx))==NULL){
 				syslog(LOG_ERR,"SSL init error");	
+				free(plugin_dir);
 				return;
 			}
 	       	
@@ -287,6 +266,7 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
               	
 			if(rc!=1){
 				syslog(LOG_ERR,"Error: Could not complete SSL handshake. %d (%s)\n",SSL_get_error(ssl,rc), ERR_error_string(ERR_get_error(), NULL));
+				free(plugin_dir);
 				return;
 			}
 			
@@ -311,6 +291,7 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
 				}
 			}
 #endif
+			free(plugin_dir);
 			return;
 			
 		}
@@ -328,7 +309,7 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
 				}
 			}
 #endif
-			
+			free(plugin_dir);
 			return;		
 			
 		}
@@ -337,10 +318,12 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
 		calculated_crc32=agent_v2_calculate_crc32((char *)&receive_packet,sizeof(receive_packet));
 		if(packet_crc32!=calculated_crc32){
 			syslog(LOG_ERR,"Error: Request packet had invalid CRC32.");
+			free(plugin_dir);
 			return;
 		}
 		if(ntohs(receive_packet.packet_type)!=AGENT_V2_SENT_PACKET){
 			syslog(LOG_ERR,"Error: WRONG packet type.");
+			free(plugin_dir);
 			return;
 		}
 		
@@ -351,6 +334,7 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
 		
 		if(!strcmp(receive_packet.plugin,"")){
 			syslog(LOG_ERR,"Error: no plugin supplied");
+			free(plugin_dir);
 			return;	
 		}
 		
@@ -381,23 +365,30 @@ void agent_v2_do_check(int sock, char * cfgfile)  {
 		if(stat(plugin_path,&plg_stat) < 0) {
 			sprintf(send_packet.output, "plugin does not exist");
 			send_packet.exit_code=(int16_t)2;
+
+			
 			goto sendit;
 			
 		}
 		
+		
 		exec_str=malloc(sizeof(char) * (strlen(plugin_path)+strlen(receive_packet.cmdline)+255));
+		
+		sprintf(exec_str, "%s %s", plugin_path, receive_packet.cmdline);
+		
+
 		
 		if(has_bad_chars(receive_packet.cmdline) < 0) {
 		//if( strchr(receive_packet.cmdline, '`') != NULL && strchr(receive_packet.cmdline, '\n') != NULL && strchr(receive_packet.cmdline, ';') != NULL && strchr(receive_packet.cmdline, '<') != NULL && strchr(receive_packet.cmdline, '>') != NULL && strchr(receive_packet.cmdline, '%') != NULL  && strchr(receive_packet.cmdline, '&') != NULL  && strstr(receive_packet.cmdline, "..") != NULL) {
 			if(stat(plugin_path,&plg_stat) < 0) {
 				sprintf(send_packet.output, "argument contains illegal characters");
 				send_packet.exit_code=(int16_t)2;
+				
 				goto sendit;
 			
 			}
 		}
 		
-		sprintf(exec_str, "%s %s", plugin_path, receive_packet.cmdline);
 		
 		
 		fplg=popen(exec_str, "r");
@@ -504,6 +495,9 @@ sendit:
 		}
 #endif
 		
+		if(plugin_path != NULL) free(plugin_path);
+		if(plugin_dir != NULL) free(plugin_dir);
+		if(exec_str != NULL) free(exec_str);
 		
 	
 		
