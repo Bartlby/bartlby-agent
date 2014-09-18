@@ -326,7 +326,7 @@ void cmd_set_passive() {
     		rjso=json_tokener_parse(reply);
     		if(rjso) {
     			json_object_object_get_ex(rjso, "error_code", &json_error);
-    			json_object_object_get_ex(rjso, "message", &json_errormsg);
+    			json_object_object_get_ex(rjso, "error_msg", &json_errormsg);
 				if(json_object_get_int(json_error) < 0) {
 					printf("Failed with '%s'\n", json_object_get_string(json_errormsg));
 					exit(4);
