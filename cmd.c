@@ -299,6 +299,56 @@ void cmd_get_services() {
 
 }
 
+void cmd_submit_trap() {
+	int res;
+	char verstr[2048];
+	char cmdstr[2048];
+	char result[2048];
+	
+	int rc;
+	
+	int i;
+	json_object * jso, *rjso, *json_services, *json_error, *json_errormsg;
+	char * reply;
+
+	
+
+	res=bartlby_portier_connect(passive_host, passive_port);
+	if(res > 0) {
+		jso = json_object_new_object();
+		json_object_object_add(jso, "method", json_object_new_string("submit_trap"));
+    	json_object_object_add(jso, "data", json_object_new_string(new_passive_text));			
+    	
+    	if(bartlby_portier_send(jso, res) >0) {
+    		reply=bartlby_portier_fetch_reply(res);
+    		rjso=json_tokener_parse(reply);
+    		if(rjso) {
+    			json_object_object_get_ex(rjso, "error_code", &json_error);
+    			json_object_object_get_ex(rjso, "error_msg", &json_errormsg);
+				if(json_object_get_int(json_error) < 0) {
+					printf("Failed with '%s'\n", json_object_get_string(json_errormsg));
+					exit(4);
+				}    else { 			
+    				printf("Return: %s\n", json_object_get_string(json_errormsg));
+    				
+    			}
+    			json_object_put(rjso);
+    		} else {
+    			printf("JSON PARSE ERROR on '%s'", reply);
+    		}
+    		free(reply);
+    	} else {
+    		printf("send failed()");
+    	}
+    	json_object_put(jso);
+    	bartlby_portier_disconnect(res);
+	} else {
+		printf("Connect failed\n");
+		exit(2);	
+	}	
+
+}
+
 void cmd_set_passive() {
 	int res;
 	char verstr[2048];
@@ -360,7 +410,7 @@ void help() {
 	printf("-m             new service text\n");
 	printf("-e             new service state (0,1,2)\n");
 	printf("-a             action\n");
-	printf("               maybe: get_passive, set_passive, get_services, get_server_id\n");
+	printf("               maybe: get_passive, set_passive, get_services, get_server_id, submit_trap\n");
 	exit(1);	
 }
 void parse_options(int argc, char ** argv) {
@@ -440,6 +490,8 @@ int main(int argc, char ** argv) {
 		cmd_get_services();
 	} else if(strcmp(passive_action, "get_server_id") == 0) {
 		cmd_get_server_id();				
+	} else if(strcmp(passive_action, "submit_trap") == 0) {
+		cmd_submit_trap();				
 	} else {
 		printf("Hmm action is pretty unusefull\n");
 	}
