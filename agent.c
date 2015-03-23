@@ -197,7 +197,7 @@ int main(int argc, char ** argv) {
 			exit(1);
 		}
 		alarm(0);
-		svc_in[recv_bytes-1]=0;
+		svc_in[recv_bytes]=0;
 		
 		if(connection_timed_out == 1) {
 			printf("2|conn Timed out!!!\n\n");
