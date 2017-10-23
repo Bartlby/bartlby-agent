@@ -92,15 +92,15 @@ dnl Check for ssl library.
 
 dnl Check for jsonc library.
 
-  AC_MSG_CHECKING(for libjson0 support)
+  AC_MSG_CHECKING(for json-c support)
     AC_MSG_RESULT(yes)
     AC_CHECK_LIB(json, json_tokener_parse,json_lib_found=yes,json_lib_found=no)
-    AC_CHECK_HEADER(json/json.h,json_lib_found=yes,json_lib_found=no)
+    AC_CHECK_HEADER(json-c/json.h,json_lib_found=yes,json_lib_found=no)
     
     if test "$json_lib_found" == "yes"; then
     
-      JSON_ADDON="-DJSON_ADDON -I/usr/include/json/"
-      JSON_FLAG="-ljson "
+      JSON_ADDON="-DJSON_ADDON -I/usr/include/json-c/"
+      JSON_FLAG="-ljson-c "
       JSON_LIBDIR="-L$JSON_DIR/include"
       JSON_INCDIR=""
       AC_SUBST(JSON_LIBDIR)
