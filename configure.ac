@@ -79,7 +79,6 @@ dnl Check for ssl library.
 		AC_SUBST(OPENSSL_INCDIR)
 		AC_SUBST(OPENSSL_ADDON)
 		AC_SUBST(OPENSSL_FLAG)
-		openssl dhparam -C 512 | awk '/^-----/ {exit} {print}' > bartlby_v2_dh.c
 	fi;
   		
   else
