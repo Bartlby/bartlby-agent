@@ -45,8 +45,6 @@ bartlby.cfg
 Makefile.conf
 bartlby.startup
 config.status
-bartlby_v2_dh.h
-bartlby_v2_dh.c
 postinstall-pak
 preinstall-pak
 

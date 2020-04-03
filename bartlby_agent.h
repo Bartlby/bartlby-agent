@@ -36,18 +36,20 @@
 
 
 #ifdef HAVE_SSL
-#include <openssl/dh.h>
+
 #include <openssl/ssl.h>
+#include <openssl/dh.h>
 #include <openssl/err.h>
 #include <openssl/rand.h>
 
 
 
 #endif
-
+DH *get_dh512();
 
 //SSL
-DH *get_dh512();
+
+
 
 //COMPAT
 #ifdef NEEDS_JSON_GET_EX

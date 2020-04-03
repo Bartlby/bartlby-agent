@@ -9,7 +9,7 @@ bartlby_agent_LDADD = -ldl $(OPENSSL_FLAG) $(SNMP_FLAG) $(JSON_FLAG)
 bartlby_agent_CFLAGS = $(AM_CFLAGS)  $(NRPE_ADDON) $(OPENSSL_ADDON)  $(SNMP_ADDON)  $(JSON_ADDON)
 
 
-bartlby_agent_v2_SOURCES = config.c  agent_v2.c global.c compat.c bartlby_v2_dh.c
+bartlby_agent_v2_SOURCES = config.c   global.c compat.c bartlby_v2_dh.c agent_v2.c
 bartlby_agent_v2_LDADD = -ldl $(OPENSSL_FLAG) $(SNMP_FLAG) $(JSON_FLAG)
 bartlby_agent_v2_CFLAGS = $(AM_CFLAGS)  $(NRPE_ADDON) $(OPENSSL_ADDON)  $(SNMP_ADDON) $(JSON_ADDON)
 
